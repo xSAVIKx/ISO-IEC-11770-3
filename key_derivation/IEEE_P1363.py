@@ -4,6 +4,7 @@ __author__ = 'Iurii Sergiichuk'
 
 '''
 The IEEE P1363 key derivation function
+We assume that we use SHA-512 hash function
 '''
 
 

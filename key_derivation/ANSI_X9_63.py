@@ -1,14 +1,14 @@
 import hashlib
-from math import floor, ceil
-import numbers
-from bitstring import BitArray
+from math import ceil
 
 __author__ = 'Iurii Sergiichuk'
 
 '''
 The ANSI X9.63 key derivation function
+We assume that we use SHA-512 hash function
 '''
 HASH_LEN = 512
+MAX_INPUT = HASH_LEN * (2 << 32 - 1)
 
 
 class SharedInfo(object):
@@ -58,35 +58,37 @@ def is_whole(number):
     return False
 
 
-def derivate_key(Z, keydata_len, shared_info):
+def derivate_key(Z, keydatalen, shared_info):
     """
     Process key derivation
     :arg Z: shared secret as long number
-    :arg keydata_len: integer that point ZZ bit length
+    :arg keydatalen: integer that point ZZ bit length
     :arg shared_info: possible additional information
     :type Z: long
-    :type keydata_len: int
+    :type keydatalen: int
     :type SharedInfo: SharedInfo
-    :return: derivated key
+    :return: derivated key in bit-string format
     :rtype : str
     """
+    if keydatalen > MAX_INPUT:
+        raise ValueError("Keydatalen should be less than HASH_LEN*(2^32-1), but was:" + str(keydatalen))
     shared_info.counter = 0x00000001
     hash_parts = []
-    for i in xrange(int(ceil(keydata_len * 1.0 / HASH_LEN))):
+    for i in xrange(int(ceil(keydatalen * 1.0 / HASH_LEN))):
         value_to_hash = bin(Z)[2:]
         value_to_hash += str(shared_info)
         h = hashlib.sha512()
         h.update(value_to_hash)
         hex_digest = h.hexdigest()
-        int_digest = int(hex_digest, base=16)
-        h_i = bin(int_digest)[2:]
+        long_digest = long(hex_digest, base=16)
+        h_i = bin(long_digest)[2:]
         hash_parts.append(h_i)
         shared_info.counter += 1
     r = ''
     for i in xrange(len(hash_parts) - 1):
         r += hash_parts[i]
     h_hash = hash_parts[len(hash_parts) - 1]
-    if not is_whole(keydata_len * 1.0 / HASH_LEN):
-        h_hash = h_hash[:keydata_len - HASH_LEN * (len(hash_parts) - 1)]
+    if not is_whole(keydatalen * 1.0 / HASH_LEN):
+        h_hash = h_hash[:keydatalen - HASH_LEN * (len(hash_parts) - 1)]
     r += h_hash
     return r

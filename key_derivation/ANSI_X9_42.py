@@ -1,35 +1,36 @@
 import hashlib
-from math import floor, ceil
-from bitstring import BitArray
+from math import ceil
 
 __author__ = 'Iurii Sergiichuk'
 
 '''
 The ANSI X9.42 key derivation function
+We assume that we use SHA-512 hash function
 '''
 HASH_LEN = 512
+MAX_INPUT = HASH_LEN * (2 << 32 - 1)
 
 
 class OtherInfo(object):
-    def __init__(self, algorithm_id, counter=0, entityAinfo=None, entityBinfo=None, suppPrivInfo=None,
-                 suppPubInfo=None):
+    def __init__(self, algorithm_id, counter=0, entity_A_info=None, entity_B_info=None, supp_priv_info=None,
+                 supp_pub_info=None):
         """
         :arg algorithm_id: unique identifier of used hash algorithm
         :arg counter: counter of iteration
         :type algorithm_id: int
         :type counter: int
-        :type entityAinfo: long
-        :type entityBinfo: long
-        :type suppPrivInfo: long
-        :type suppPubInfo: long
+        :type entity_A_info: long
+        :type entity_B_info: long
+        :type supp_priv_info: long
+        :type supp_pub_info: long
         :rtype : OtherInfo
         """
         self.algorithm_id = algorithm_id
         self.counter = counter
-        self.entityAinfo = entityAinfo
-        self.entityBinfo = entityBinfo
-        self.suppPrivInfo = suppPrivInfo
-        self.suppPubInfo = suppPubInfo
+        self.entityAinfo = entity_A_info
+        self.entityBinfo = entity_B_info
+        self.suppPrivInfo = supp_priv_info
+        self.suppPubInfo = supp_pub_info
 
     def __str__(self):
         result = str(self.algorithm_id) + str(self.counter)
@@ -44,17 +45,20 @@ class OtherInfo(object):
         return result
 
 
-def derivate_key(ZZ, keydata_len, other_info):
+def derivate_key(ZZ, keydatalen, other_info):
     """
-    :arg ZZ: shared secret as long number
-    :arg keydata_len: integer that point ZZ bit length
-    :arg other_info: possible additional information
+    :param ZZ: shared secret as long number
+    :param keydatalen: integer that point ZZ bit length
+    :param other_info: possible additional information
     :type ZZ: long
-    :type keydata_len: int
+    :type keydatalen: int
     :type other_info: OtherInfo
+    :return: derivated key in bit-string format
     :rtype : str
     """
-    d = int(ceil(keydata_len * 1.0 / HASH_LEN))
+    if keydatalen > MAX_INPUT:
+        raise ValueError("Keydatalen should be less than HASH_LEN*(2^32-1), but was:" + str(keydatalen))
+    d = int(ceil(keydatalen * 1.0 / HASH_LEN))
     other_info.counter = 0x00000001
     hash_parts = ''
     for i in xrange(d):
@@ -63,9 +67,9 @@ def derivate_key(ZZ, keydata_len, other_info):
         h = hashlib.sha512()
         h.update(value_to_hash)
         hex_digest = h.hexdigest()
-        int_digest = int(hex_digest, base=16)
-        h_i = bin(int_digest)[2:]
+        long_digest = long(hex_digest, base=16)
+        h_i = bin(long_digest)[2:]
         hash_parts += h_i
         other_info.counter += 1
-    r = hash_parts[:keydata_len]
+    r = hash_parts[:keydatalen]
     return r
